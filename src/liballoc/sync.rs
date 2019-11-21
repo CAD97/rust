@@ -1292,13 +1292,16 @@ impl<T> Weak<T> {
             ptr: NonNull::new(usize::MAX as *mut ArcInner<T>).expect("MAX is not 0"),
         }
     }
+}
 
+impl<T: ?Sized> Weak<T> {
     /// Returns a raw pointer to the object `T` pointed to by this `Weak<T>`.
     ///
     /// It is up to the caller to ensure that the object is still alive when accessing it through
     /// the pointer.
     ///
-    /// The pointer may be [`null`] or be dangling in case the object has already been destroyed.
+    /// The pointer may be misaligned or be dangling in case the object has already been destroyed
+    /// or never existed in the first place.
     ///
     /// # Examples
     ///
@@ -1338,6 +1341,20 @@ impl<T> Weak<T> {
         }
     }
 
+    /// Returns a raw pointer to the object `T` pointed to by this `Weak<T>`,
+    /// returning the wrapped pointer as `NonNull<T>`.
+    ///
+    /// The same restrictions of accessing the target of the pointer as with
+    /// [`as_raw`] apply.
+    ///
+    /// [`as_raw`]: struct.Weak.html#method.as_raw
+    #[unstable(feature = "weak_into_raw", issue = "60728")]
+    #[unstable(feature = "rc_into_raw_non_null", issue = "47336")]
+    pub fn as_raw_non_null(&self) -> NonNull<T> {
+        // safe because Arc guarantees its pointer is non-null
+        unsafe { NonNull::new_unchecked(this.as_raw() as *mut _) }
+    }
+
     /// Consumes the `Weak<T>` and turns it into a raw pointer.
     ///
     /// This converts the weak pointer into a raw pointer, preserving the original weak count. It
@@ -1373,20 +1390,37 @@ impl<T> Weak<T> {
         result
     }
 
+    /// Consumes the `Weak<T>`, returning the wrapped pointer as `NonNull<T>`.
+    ///
+    /// This converts the weak pointer into a raw pointer, preserving the original weak count. It
+    /// can be turned back into the `Weak<T>` with [`from_raw`].
+    ///
+    /// The same restrictions of accessing the target of the pointer as with
+    /// [`as_raw`] apply.
+    ///
+    /// [`from_raw`]: struct.Weak.html#method.from_raw
+    /// [`as_raw`]: struct.Weak.html#method.as_raw
+    pub fn into_raw_non_null(self) -> NonNull<T> {
+        // safe because Arc guarantees its pointer is non-null
+        unsafe { NonNull::new_unchecked(this.into_raw() as *mut _) }
+    }
+
     /// Converts a raw pointer previously created by [`into_raw`] back into
     /// `Weak<T>`.
     ///
     /// This can be used to safely get a strong reference (by calling [`upgrade`]
     /// later) or to deallocate the weak count by dropping the `Weak<T>`.
     ///
-    /// It takes ownership of one weak count. In case a [`null`] is passed, a dangling [`Weak`] is
-    /// returned.
+    /// It takes ownership of one weak count.
     ///
     /// # Safety
     ///
     /// The pointer must represent one valid weak count. In other words, it must point to `T` which
     /// is or *was* managed by an [`Arc`] and the weak count of that [`Arc`] must not have reached
     /// 0. It is allowed for the strong count to be 0.
+    ///
+    /// Note that this means `null` is _not_ a valid input.
+    /// For a nonexistent target, use `Weak::new` instead.
     ///
     /// # Examples
     ///
@@ -1418,16 +1452,12 @@ impl<T> Weak<T> {
     /// [`Arc`]: struct.Arc.html
     #[unstable(feature = "weak_into_raw", issue = "60728")]
     pub unsafe fn from_raw(ptr: *const T) -> Self {
-        if ptr.is_null() {
-            Self::new()
-        } else {
-            // See Arc::from_raw for details
-            let offset = data_offset(ptr);
-            let fake_ptr = ptr as *mut ArcInner<T>;
-            let ptr = set_data_ptr(fake_ptr, (ptr as *mut u8).offset(-offset));
-            Weak {
-                ptr: NonNull::new(ptr).expect("Invalid pointer passed to from_raw"),
-            }
+        // See Arc::from_raw for details
+        let offset = data_offset(ptr);
+        let fake_ptr = ptr as *mut ArcInner<T>;
+        let ptr = set_data_ptr(fake_ptr, (ptr as *mut u8).offset(-offset));
+        Weak {
+            ptr: NonNull::new(ptr).expect("Invalid pointer passed to from_raw"),
         }
     }
 }
