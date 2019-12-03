@@ -120,13 +120,13 @@ impl<'a, 'tcx> ConstToPat<'a, 'tcx> {
                 // if `PartialEq` is not implemented. However, that breaks stable
                 // code at the moment, because types like `for <'a> fn(&'a ())` do
                 // not *yet* implement `PartialEq`. So for now we leave this here.
-                let ty_is_partial_eq: bool = {
-                    let partial_eq_trait_id = self.tcx().lang_items().eq_trait().unwrap();
+                let ty_can_eq: bool = {
+                    let eq_op_trait_id = self.tcx().lang_items().eq_op_trait().unwrap();
                     let obligation: PredicateObligation<'_> =
                         self.tcx().predicate_for_trait_def(
                             self.param_env,
                             ObligationCause::misc(self.span, self.id),
-                            partial_eq_trait_id,
+                            eq_op_trait_id,
                             0,
                             cv.ty,
                             &[]);
@@ -134,7 +134,7 @@ impl<'a, 'tcx> ConstToPat<'a, 'tcx> {
                     self.infcx.predicate_may_hold(&obligation)
                 };
 
-                if !ty_is_partial_eq {
+                if !ty_can_eq {
                     // span_fatal avoids ICE from resolution of non-existent method (rare case).
                     self.tcx().sess.span_fatal(self.span, &msg);
                 } else {

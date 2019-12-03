@@ -190,7 +190,7 @@ use self::Ordering::*;
 /// assert_eq!(x == y, false);
 /// assert_eq!(x.eq(&y), false);
 /// ```
-#[lang = "eq"]
+#[cfg_attr(bootstrap, lang = "eq")]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(alias = "==")]
 #[doc(alias = "!=")]
@@ -198,7 +198,7 @@ use self::Ordering::*;
     message="can't compare `{Self}` with `{Rhs}`",
     label="no implementation for `{Self} == {Rhs}`",
 )]
-pub trait PartialEq<Rhs: ?Sized = Self> {
+pub trait PartialEq<Rhs: ?Sized = Self>: EqOp<Rhs, Target = bool> + NeOp<Rhs, Target = bool> {
     /// This method tests for `self` and `other` values to be equal, and is used
     /// by `==`.
     #[must_use]
@@ -217,6 +217,49 @@ pub trait PartialEq<Rhs: ?Sized = Self> {
 #[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
 #[allow_internal_unstable(core_intrinsics, structural_match)]
 pub macro PartialEq($item:item) { /* compiler built-in */ }
+
+
+#[cfg_attr(not(bootstrap), lang = "eq_op")]
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+/// banana
+pub trait EqOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn eq_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[cfg_attr(not(bootstrap), lang = "ne_op")]
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+/// banana
+pub trait NeOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn ne_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialEq<Rhs>, Rhs: ?Sized> EqOp<Rhs> for T {
+    type Target = bool;
+    fn eq_op(&self, other: &Rhs) -> bool {
+        PartialEq::eq(self, other)
+    }
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialEq<Rhs>, Rhs: ?Sized> NeOp<Rhs> for T {
+    type Target = bool;
+    fn ne_op(&self, other: &Rhs) -> bool {
+        PartialEq::ne(self, other)
+    }
+}
 
 /// Trait for equality comparisons which are [equivalence relations](
 /// https://en.wikipedia.org/wiki/Equivalence_relation).
@@ -746,7 +789,7 @@ impl PartialOrd for Ordering {
 /// assert_eq!(x < y, true);
 /// assert_eq!(x.lt(&y), true);
 /// ```
-#[lang = "partial_ord"]
+#[cfg_attr(bootstrap, lang = "partial_ord")]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(alias = ">")]
 #[doc(alias = "<")]
@@ -756,7 +799,12 @@ impl PartialOrd for Ordering {
     message="can't compare `{Self}` with `{Rhs}`",
     label="no implementation for `{Self} < {Rhs}` and `{Self} > {Rhs}`",
 )]
-pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
+pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs>
+    + LtOp<Rhs, Target = bool>
+    + LeOp<Rhs, Target = bool>
+    + GtOp<Rhs, Target = bool>
+    + GeOp<Rhs, Target = bool>
+{
     /// This method returns an ordering between `self` and `other` values if one exists.
     ///
     /// # Examples
@@ -876,6 +924,91 @@ pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
 #[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
 #[allow_internal_unstable(core_intrinsics)]
 pub macro PartialOrd($item:item) { /* compiler built-in */ }
+
+
+#[cfg_attr(not(bootstrap), lang = "lt_op")]
+/// banana
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+pub trait LtOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn lt_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[cfg_attr(not(bootstrap), lang = "le_op")]
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+/// banana
+pub trait LeOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn le_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[cfg_attr(not(bootstrap), lang = "gt_op")]
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+/// banana
+pub trait GtOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn gt_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[cfg_attr(not(bootstrap), lang = "ge_op")]
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+/// banana
+pub trait GeOp<Rhs: ?Sized = Self>
+{
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    type Target;
+    /// banana
+    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    fn ge_op(&self, other: &Rhs) -> Self::Target;
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LtOp<Rhs> for T {
+    type Target = bool;
+    fn lt_op(&self, other: &Rhs) -> bool {
+        PartialOrd::lt(self, other)
+    }
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LeOp<Rhs> for T {
+    type Target = bool;
+    fn le_op(&self, other: &Rhs) -> bool {
+        PartialOrd::le(self, other)
+    }
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> GtOp<Rhs> for T {
+    type Target = bool;
+    fn gt_op(&self, other: &Rhs) -> bool {
+        PartialOrd::gt(self, other)
+    }
+}
+
+#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> GeOp<Rhs> for T {
+    type Target = bool;
+    fn ge_op(&self, other: &Rhs) -> bool {
+        PartialOrd::ge(self, other)
+    }
+}
 
 /// Compares and returns the minimum of two values.
 ///

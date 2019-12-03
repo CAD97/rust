@@ -694,12 +694,12 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 hir::BinOpKind::BitOr => ("bitor", lang.bitor_trait()),
                 hir::BinOpKind::Shl => ("shl", lang.shl_trait()),
                 hir::BinOpKind::Shr => ("shr", lang.shr_trait()),
-                hir::BinOpKind::Lt => ("lt", lang.partial_ord_trait()),
-                hir::BinOpKind::Le => ("le", lang.partial_ord_trait()),
-                hir::BinOpKind::Ge => ("ge", lang.partial_ord_trait()),
-                hir::BinOpKind::Gt => ("gt", lang.partial_ord_trait()),
-                hir::BinOpKind::Eq => ("eq", lang.eq_trait()),
-                hir::BinOpKind::Ne => ("ne", lang.eq_trait()),
+                hir::BinOpKind::Lt => ("lt_op", lang.lt_op_trait()),
+                hir::BinOpKind::Le => ("le_op", lang.le_op_trait()),
+                hir::BinOpKind::Ge => ("ge_op", lang.ge_op_trait()),
+                hir::BinOpKind::Gt => ("gt_op", lang.gt_op_trait()),
+                hir::BinOpKind::Eq => ("eq_op", lang.eq_op_trait()),
+                hir::BinOpKind::Ne => ("ne_op", lang.ne_op_trait()),
                 hir::BinOpKind::And | hir::BinOpKind::Or => {
                     span_bug!(span, "&& and || are not overloadable")
                 }

@@ -275,6 +275,7 @@ symbols! {
         Encodable,
         env,
         eq,
+        eq_op,
         err,
         Err,
         Eq,

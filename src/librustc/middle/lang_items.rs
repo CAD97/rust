@@ -42,8 +42,8 @@ enum_from_u32! {
 
 impl LangItem {
     /// Returns the `name` in `#[lang = "$name"]`.
-    /// For example, `LangItem::EqTraitLangItem`,
-    /// that is `#[lang = "eq"]` would result in `"eq"`.
+    /// For example, `LangItem::EqOpTraitLangItem`,
+    /// that is `#[lang = "eq_op"]` would result in `"eq_op"`.
     fn name(self) -> &'static str {
         match self {
             $( $variant => $name, )*
@@ -355,9 +355,12 @@ language_item_table! {
     UnpinTraitLangItem,          "unpin",              unpin_trait,             Target::Trait;
     PinTypeLangItem,             "pin",                pin_type,                Target::Struct;
 
-    // Don't be fooled by the naming here: this lang item denotes `PartialEq`, not `Eq`.
-    EqTraitLangItem,             "eq",                 eq_trait,                Target::Trait;
-    PartialOrdTraitLangItem,     "partial_ord",        partial_ord_trait,       Target::Trait;
+    EqOpTraitLangItem,           "eq_op",              eq_op_trait,             Target::Trait;
+    NeOpTraitLangItem,           "ne_op",              ne_op_trait,             Target::Trait;
+    LtOpTraitLangItem,           "lt_op",              lt_op_trait,             Target::Trait;
+    LeOpTraitLangItem,           "le_op",              le_op_trait,             Target::Trait;
+    GtOpTraitLangItem,           "gt_op",              gt_op_trait,             Target::Trait;
+    GeOpTraitLangItem,           "ge_op",              ge_op_trait,             Target::Trait;
 
     // A number of panic-related lang items. The `panic` item corresponds to
     // divide-by-zero and various panic cases with `match`. The
