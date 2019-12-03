@@ -220,32 +220,32 @@ pub macro PartialEq($item:item) { /* compiler built-in */ }
 
 
 #[cfg_attr(not(bootstrap), lang = "eq_op")]
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 /// banana
 pub trait EqOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn eq_op(&self, other: &Rhs) -> Self::Target;
 }
 
 #[cfg_attr(not(bootstrap), lang = "ne_op")]
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 /// banana
 pub trait NeOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn ne_op(&self, other: &Rhs) -> Self::Target;
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialEq<Rhs>, Rhs: ?Sized> EqOp<Rhs> for T {
     type Target = bool;
     fn eq_op(&self, other: &Rhs) -> bool {
@@ -253,7 +253,7 @@ impl<T: ?Sized + PartialEq<Rhs>, Rhs: ?Sized> EqOp<Rhs> for T {
     }
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialEq<Rhs>, Rhs: ?Sized> NeOp<Rhs> for T {
     type Target = bool;
     fn ne_op(&self, other: &Rhs) -> bool {
@@ -928,57 +928,57 @@ pub macro PartialOrd($item:item) { /* compiler built-in */ }
 
 #[cfg_attr(not(bootstrap), lang = "lt_op")]
 /// banana
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 pub trait LtOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn lt_op(&self, other: &Rhs) -> Self::Target;
 }
 
 #[cfg_attr(not(bootstrap), lang = "le_op")]
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 /// banana
 pub trait LeOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn le_op(&self, other: &Rhs) -> Self::Target;
 }
 
 #[cfg_attr(not(bootstrap), lang = "gt_op")]
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 /// banana
 pub trait GtOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn gt_op(&self, other: &Rhs) -> Self::Target;
 }
 
 #[cfg_attr(not(bootstrap), lang = "ge_op")]
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 /// banana
 pub trait GeOp<Rhs: ?Sized = Self>
 {
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     type Target;
     /// banana
-    #[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+    #[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
     fn ge_op(&self, other: &Rhs) -> Self::Target;
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LtOp<Rhs> for T {
     type Target = bool;
     fn lt_op(&self, other: &Rhs) -> bool {
@@ -986,7 +986,7 @@ impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LtOp<Rhs> for T {
     }
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LeOp<Rhs> for T {
     type Target = bool;
     fn le_op(&self, other: &Rhs) -> bool {
@@ -994,7 +994,7 @@ impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> LeOp<Rhs> for T {
     }
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> GtOp<Rhs> for T {
     type Target = bool;
     fn gt_op(&self, other: &Rhs) -> bool {
@@ -1002,7 +1002,7 @@ impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> GtOp<Rhs> for T {
     }
 }
 
-#[unstable(feature = "comparison-traits", reason = "recently redesigned", issue = "0")]
+#[unstable(feature = "comparison_traits", reason = "recently redesigned", issue = "0")]
 impl<T: ?Sized + PartialOrd<Rhs>, Rhs: ?Sized> GeOp<Rhs> for T {
     type Target = bool;
     fn ge_op(&self, other: &Rhs) -> bool {
