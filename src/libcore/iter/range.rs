@@ -341,10 +341,10 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
 
     #[inline]
     fn next(&mut self) -> Option<A> {
-        self.compute_is_empty();
-        if self.is_empty.unwrap_or_default() {
+        if self.is_empty() {
             return None;
         }
+        self.compute_is_empty();
         let is_iterating = self.start < self.end;
         self.is_empty = Some(!is_iterating);
         Some(if is_iterating {
@@ -369,10 +369,10 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
 
     #[inline]
     fn nth(&mut self, n: usize) -> Option<A> {
-        self.compute_is_empty();
-        if self.is_empty.unwrap_or_default() {
+        if self.is_empty() {
             return None;
         }
+        self.compute_is_empty();
 
         if let Some(plus_n) = self.start.add_usize(n) {
             use crate::cmp::Ordering::*;
@@ -402,11 +402,10 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
         F: FnMut(B, Self::Item) -> R,
         R: Try<Ok = B>,
     {
-        self.compute_is_empty();
-
         if self.is_empty() {
             return Try::from_ok(init);
         }
+        self.compute_is_empty();
 
         let mut accum = init;
 
@@ -445,10 +444,10 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
 impl<A: Step> DoubleEndedIterator for ops::RangeInclusive<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
-        self.compute_is_empty();
-        if self.is_empty.unwrap_or_default() {
+        if self.is_empty() {
             return None;
         }
+        self.compute_is_empty();
         let is_iterating = self.start < self.end;
         self.is_empty = Some(!is_iterating);
         Some(if is_iterating {
@@ -461,10 +460,10 @@ impl<A: Step> DoubleEndedIterator for ops::RangeInclusive<A> {
 
     #[inline]
     fn nth_back(&mut self, n: usize) -> Option<A> {
-        self.compute_is_empty();
-        if self.is_empty.unwrap_or_default() {
+        if self.is_empty() {
             return None;
         }
+        self.compute_is_empty();
 
         if let Some(minus_n) = self.end.sub_usize(n) {
             use crate::cmp::Ordering::*;
@@ -494,11 +493,10 @@ impl<A: Step> DoubleEndedIterator for ops::RangeInclusive<A> {
         F: FnMut(B, Self::Item) -> R,
         R: Try<Ok = B>,
     {
-        self.compute_is_empty();
-
         if self.is_empty() {
             return Try::from_ok(init);
         }
+        self.compute_is_empty();
 
         let mut accum = init;
 
