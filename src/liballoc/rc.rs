@@ -550,6 +550,29 @@ impl<T> Rc<[mem::MaybeUninit<T>]> {
 }
 
 impl<T: ?Sized> Rc<T> {
+    /// Returns a raw pointer to the object `T` managed by this `Rc<T>`.
+    ///
+    /// This is a distinct operation from dereferencing; a pointer created
+    /// from this method can be upgraded back to `Rc` using [`clone_raw`],
+    /// but a reference created by dereferencing cannot be upgraded.
+    ///
+    ///   [`clone_raw`]: Rc::clone_raw
+    #[unstable(feature = "rc_as_raw", issue = "60728")]
+    pub fn as_raw(this: &Self) -> *const T {
+        let ptr: *mut RcBox<T> = NonNull::as_ptr(this.ptr);
+        let fake_ptr = ptr as *mut T;
+
+        // SAFETY: This cannot go through Deref::deref.
+        // Instead, we manually offset the pointer rather than manifesting a reference.
+        // This is so that the returned pointer retains the same provenance as our pointer.
+        // This is required so that e.g. `get_mut` can write through the pointer
+        // after the Rc is recovered through `from_raw`.
+        unsafe {
+            let offset = data_offset(&(*ptr).value);
+            set_data_ptr(fake_ptr, (ptr as *mut u8).offset(offset))
+        }
+    }
+
     /// Consumes the `Rc`, returning the wrapped pointer.
     ///
     /// To avoid a memory leak the pointer must be converted back to an `Rc` using
@@ -568,19 +591,7 @@ impl<T: ?Sized> Rc<T> {
     /// ```
     #[stable(feature = "rc_raw", since = "1.17.0")]
     pub fn into_raw(this: Self) -> *const T {
-        let ptr: *mut RcBox<T> = NonNull::as_ptr(this.ptr);
-        let fake_ptr = ptr as *mut T;
-        mem::forget(this);
-
-        // SAFETY: This cannot go through Deref::deref.
-        // Instead, we manually offset the pointer rather than manifesting a reference.
-        // This is so that the returned pointer retains the same provenance as our pointer.
-        // This is required so that e.g. `get_mut` can write through the pointer
-        // after the Rc is recovered through `from_raw`.
-        unsafe {
-            let offset = data_offset(&(*ptr).value);
-            set_data_ptr(fake_ptr, (ptr as *mut u8).offset(offset))
-        }
+        Self::as_raw(&mem::ManuallyDrop::new(this))
     }
 
     /// Constructs an `Rc<T>` from a raw pointer.
@@ -629,6 +640,23 @@ impl<T: ?Sized> Rc<T> {
         let rc_ptr = set_data_ptr(fake_ptr, (ptr as *mut u8).offset(-offset));
 
         Self::from_ptr(rc_ptr)
+    }
+
+    /// Clone the `Rc` represented by a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must have originated from [`Rc::into_raw`],
+    /// [`Rc:as_raw`], [`Weak::into_raw`], or [`Weak::as_raw`],
+    /// and there must be at least one outstanding strong reference
+    /// to the described location.
+    ///
+    /// It is expressly _not allowed_ to pass a reference acquired by
+    /// dereferencing. Replacing `Rc::clone(&rc)` with `Rc::clone_raw(&*rc)`
+    /// is undefined behavior.
+    #[unstable(feature = "rc_clone_raw", issue = "60728")]
+    pub unsafe fn clone_raw(ptr: *const T) -> Self {
+        Self::clone(&mem::ManuallyDrop::new(Self::from_raw(ptr)))
     }
 
     /// Consumes the `Rc`, returning the wrapped pointer as `NonNull<T>`.
@@ -1714,9 +1742,8 @@ impl<T> Weak<T> {
     /// [`as_raw`]: struct.Weak.html#method.as_raw
     #[unstable(feature = "weak_into_raw", issue = "60728")]
     pub fn into_raw(self) -> *const T {
-        let result = self.as_raw();
-        mem::forget(self);
-        result
+        let this = mem::ManuallyDrop::new(self);
+        this.as_raw()
     }
 
     /// Converts a raw pointer previously created by [`into_raw`] back into `Weak<T>`.
@@ -1778,6 +1805,11 @@ impl<T> Weak<T> {
             let ptr = set_data_ptr(fake_ptr, (ptr as *mut u8).offset(-offset));
             Weak { ptr: NonNull::new(ptr).expect("Invalid pointer passed to from_raw") }
         }
+    }
+
+    #[unstable(feature = "rc_clone_raw", issue = "60728")]
+    pub unsafe fn clone_raw(ptr: *const T) -> Self {
+        Self::clone(&mem::ManuallyDrop::new(Self::from_raw(ptr)))
     }
 }
 
