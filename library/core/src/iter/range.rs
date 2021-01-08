@@ -58,7 +58,7 @@ pub unsafe trait Step: Clone + PartialOrd + Sized {
     #[unstable(feature = "step_trait_ext", reason = "recently added", issue = "42168")]
     fn forward_checked(start: Self, count: usize) -> Option<Self>;
 
-    /// Returns the value that would be obtained by taking the *successor*
+    /// Returns the value that would be obtained by taking the *predecessor*
     /// of `self` `count` times.
     ///
     /// If this would overflow the range of values supported by `Self`,
