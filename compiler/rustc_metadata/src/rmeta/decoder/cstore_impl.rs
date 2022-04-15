@@ -147,7 +147,7 @@ provide! { <'tcx> tcx, def_id, other, cdata,
     impl_polarity => { table }
     impl_defaultness => { table }
     impl_constness => { table }
-    coerce_unsized_info => { table }
+    coerce_unsized_kind => { table }
     mir_const_qualif => { table }
     rendered_const => { table }
     asyncness => { table }

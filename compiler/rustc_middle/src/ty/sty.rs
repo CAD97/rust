@@ -2292,14 +2292,18 @@ impl<'tcx> Ty<'tcx> {
             | ty::Closure(..)
             | ty::Never
             | ty::Error(_)
-            // Extern types have metadata = ().
-            | ty::Foreign(..)
             // If returned by `struct_tail_without_normalization` this is a unit struct
             // without any fields, or not a struct, and therefore is Sized.
             | ty::Adt(..)
             // If returned by `struct_tail_without_normalization` this is the empty tuple,
             // a.k.a. unit type, which is Sized
-            | ty::Tuple(..) => (tcx.types.unit, false),
+            | ty::Tuple(..) => {
+                let sized_metadata = tcx.lang_items().sized_metadata().unwrap();
+                (tcx.type_of(sized_metadata).subst(tcx, &[tail.into()]), false)
+            },
+
+            // Extern types have metadata = ().
+            ty::Foreign(..) => (tcx.types.unit, false),
 
             ty::Str | ty::Slice(_) => (tcx.types.usize, false),
             ty::Dynamic(..) => {
@@ -2309,7 +2313,10 @@ impl<'tcx> Ty<'tcx> {
 
             // type parameters only have unit metadata if they're sized, so return true
             // to make sure we double check this during confirmation
-            ty::Param(_) |  ty::Projection(_) | ty::Opaque(..) => (tcx.types.unit, true),
+            ty::Param(_) | ty::Projection(_) | ty::Opaque(..) => {
+                let sized_metadata = tcx.lang_items().sized_metadata().unwrap();
+                (tcx.type_of(sized_metadata).subst(tcx, &[tail.into()]), true)
+            },
 
             ty::Infer(ty::TyVar(_))
             | ty::Bound(..)

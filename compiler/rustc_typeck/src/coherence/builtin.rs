@@ -10,7 +10,7 @@ use rustc_hir::ItemKind;
 use rustc_infer::infer;
 use rustc_infer::infer::outlives::env::OutlivesEnvironment;
 use rustc_infer::infer::{RegionckMode, TyCtxtInferExt};
-use rustc_middle::ty::adjustment::CoerceUnsizedInfo;
+use rustc_middle::ty::adjustment::CoerceUnsizedKind;
 use rustc_middle::ty::TypeFoldable;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_trait_selection::traits::error_reporting::InferCtxtExt;
@@ -148,7 +148,7 @@ fn visit_implementation_of_coerce_unsized<'tcx>(tcx: TyCtxt<'tcx>, impl_did: Loc
     // errors; other parts of the code may demand it for the info of
     // course.
     let span = tcx.def_span(impl_did);
-    tcx.at(span).coerce_unsized_info(impl_did);
+    tcx.at(span).coerce_unsized_kind(impl_did);
 }
 
 fn visit_implementation_of_dispatch_from_dyn<'tcx>(tcx: TyCtxt<'tcx>, impl_did: LocalDefId) {
@@ -320,14 +320,15 @@ fn visit_implementation_of_dispatch_from_dyn<'tcx>(tcx: TyCtxt<'tcx>, impl_did: 
     })
 }
 
-pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedInfo {
-    debug!("compute_coerce_unsized_info(impl_did={:?})", impl_did);
+pub fn coerce_unsized_kind<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedKind {
+    debug!("compute_coerce_unsized_kind(impl_did={:?})", impl_did);
 
     // this provider should only get invoked for local def-ids
     let impl_did = impl_did.expect_local();
     let span = tcx.def_span(impl_did);
 
     let coerce_unsized_trait = tcx.require_lang_item(LangItem::CoerceUnsized, Some(span));
+    let metadata_coerce_impl = tcx.lang_items().metadata_coerce_impl();
 
     let unsize_trait = tcx.lang_items().require(LangItem::Unsize).unwrap_or_else(|err| {
         tcx.sess.fatal(&format!("`CoerceUnsized` implementation {}", err));
@@ -342,7 +343,7 @@ pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUn
     let param_env = tcx.param_env(impl_did);
     assert!(!source.has_escaping_bound_vars());
 
-    let err_info = CoerceUnsizedInfo { custom_kind: None };
+    let err_info = CoerceUnsizedKind::Ptr;
 
     debug!("visit_implementation_of_coerce_unsized: {:?} -> {:?} (free)", source, target);
 
@@ -362,7 +363,7 @@ pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUn
                     )
                     .emit();
             }
-            (mt_a.ty, mt_b.ty, unsize_trait, None)
+            (mt_a.ty, mt_b.ty, unsize_trait, CoerceUnsizedKind::Ptr)
         };
         let (source, target, trait_def_id, kind) = match (source.kind(), target.kind()) {
             (&ty::Ref(r_a, ty_a, mutbl_a), &ty::Ref(r_b, ty_b, mutbl_b)) => {
@@ -523,8 +524,60 @@ pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUn
                 }
 
                 let (i, a, b) = diff_fields[0];
-                let kind = ty::adjustment::CustomCoerceUnsized::Struct(i);
-                (a, b, coerce_unsized_trait, Some(kind))
+                let kind = CoerceUnsizedKind::Struct(i);
+                (a, b, coerce_unsized_trait, kind)
+            }
+
+            // #[lang = "metadata_coerce_impl"]
+            // impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<<U as Pointee>::Metadata>
+            //     for <T as Pointee>::Metadata
+            (source, target) if Some(impl_did.to_def_id()) == metadata_coerce_impl => {
+                let kind = CoerceUnsizedKind::JustMetadata;
+
+                let pointee_trait = tcx.require_lang_item(LangItem::PointeeTrait, Some(span));
+                let pointee_metadata = tcx.require_lang_item(LangItem::Metadata, Some(span));
+                let sized_metadata = tcx.lang_items().sized_metadata();
+                let dyn_metadata = tcx.lang_items().dyn_metadata();
+
+                // FIXME(CAD97): should this form check be elsewhere? on the lang item wf check?
+                let (ty::Adt(def_a, substs_a), ty::Projection(proj_b)) = (source, target)
+                else {
+                    tcx.sess.struct_span_err(span, r#"#[lang = "metadata_coerce_impl] malformed"#).emit();
+                    return err_info;
+                };
+
+                let a = if Some(def_a.did()) == sized_metadata || Some(def_a.did()) == dyn_metadata {
+                    // FIXME(CAD97): actual error reporting
+                    if !substs_a.len() == 1 {
+                        bug!("ill-formed metadata type");
+                    }
+                    Some(substs_a.type_at(0))
+                } else {
+                    tcx.sess.struct_span_err(
+                        span,
+                        r#"#`[lang = "metadata_coerce_impl]` must be used on \
+                            a Self type of `SizedMetadata` or `DynMetadata`"#
+                    ).emit();
+                    None
+                };
+
+                let b = if proj_b.item_def_id == pointee_metadata && proj_b.trait_def_id(tcx) == pointee_trait {
+                    Some(proj_b.self_ty())
+                } else {
+                    tcx.sess.struct_span_err(
+                        span,
+                        r#"#`[lang = "metadata_coerce_impl]` must \
+                            coerce to `<? as Pointee>::Metadata`"#
+                    ).emit();
+                    None
+                };
+
+                let (Some(a), Some(b)) = (a, b)
+                else {
+                    return err_info;
+                };
+
+                (a, b, unsize_trait, kind)
             }
 
             _ => {
@@ -569,6 +622,6 @@ pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUn
             RegionckMode::default(),
         );
 
-        CoerceUnsizedInfo { custom_kind: kind }
+        kind
     })
 }

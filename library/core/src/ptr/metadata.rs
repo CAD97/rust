@@ -73,8 +73,27 @@ pub trait Pointee {
 /// }
 /// ```
 #[unstable(feature = "ptr_metadata", issue = "81513")]
-// NOTE: don’t stabilize this before trait aliases are stable in the language?
+#[cfg(bootstrap)]
 pub trait Thin = Pointee<Metadata = ()>;
+
+/// Pointers to types implementing this trait alias are “thin”.
+///
+/// This includes statically-`Sized` types and `extern` types.
+///
+/// # Example
+///
+/// ```rust
+/// #![feature(ptr_metadata)]
+///
+/// fn this_never_panics<T: std::ptr::Thin>() {
+///     assert_eq!(std::mem::size_of::<&T>(), std::mem::size_of::<usize>())
+/// }
+/// ```
+#[unstable(feature = "ptr_metadata", issue = "81513")]
+// NOTE: don’t stabilize this before trait aliases are stable in the language?
+// NOTE: excludes extern types, as they don't use SizedMetadata... change this?
+#[cfg(not(bootstrap))]
+pub trait Thin = Pointee<Metadata = SizedMetadata<Self>>;
 
 /// Extract the metadata component of a pointer.
 ///
@@ -154,6 +173,67 @@ impl<T: ?Sized> Copy for PtrComponents<T> {}
 impl<T: ?Sized> Clone for PtrComponents<T> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+/// The metadata for a `Sized` type.
+///
+/// This is just another flavor of `PhantomData` which exists in order to
+/// facilitate the unsizing of pointee metadata.
+#[cfg_attr(not(bootstrap), lang = "sized_metadata")]
+pub struct SizedMetadata<T: ?Sized> {
+    phantom: crate::marker::PhantomData<T>,
+}
+
+unsafe impl<T: ?Sized> Send for SizedMetadata<T> {}
+unsafe impl<T: ?Sized> Sync for SizedMetadata<T> {}
+
+impl<T: ?Sized> fmt::Debug for SizedMetadata<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SizedMetadata").finish()
+    }
+}
+
+// Manual impls needed to avoid `T: $Trait` bounds.
+
+impl<T: ?Sized> Unpin for SizedMetadata<T> {}
+
+impl<T: ?Sized> Copy for SizedMetadata<T> {}
+
+impl<T: ?Sized> Clone for SizedMetadata<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: ?Sized> Eq for SizedMetadata<T> {}
+
+impl<T: ?Sized> PartialEq for SizedMetadata<T> {
+    #[inline]
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl<T: ?Sized> Ord for SizedMetadata<T> {
+    #[inline]
+    fn cmp(&self, _: &Self) -> crate::cmp::Ordering {
+        crate::cmp::Ordering::Equal
+    }
+}
+
+impl<T: ?Sized> PartialOrd for SizedMetadata<T> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<crate::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: ?Sized> Hash for SizedMetadata<T> {
+    #[inline]
+    fn hash<H: Hasher>(&self, _: &mut H) {
+        // no-op
     }
 }
 

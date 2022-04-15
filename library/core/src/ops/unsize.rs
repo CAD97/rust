@@ -1,4 +1,6 @@
 use crate::marker::Unsize;
+#[cfg(not(bootstrap))]
+use crate::ptr::{Pointee, SizedMetadata};
 
 /// Trait that indicates that this is a pointer or a wrapper for one,
 /// where unsizing can be performed on the pointee.
@@ -67,6 +69,21 @@ impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<*const U> for *mut T {}
 // *const T -> *const U
 #[unstable(feature = "coerce_unsized", issue = "27732")]
 impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<*const U> for *const T {}
+
+// SizedMetadata<T> -> <U as Pointee>::Metadata
+#[unstable(feature = "coerce_unsized", issue = "27732")]
+#[cfg(not(bootstrap))]
+#[lang = "metadata_coerce_impl"]
+impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<<U as Pointee>::Metadata>
+    for SizedMetadata<T>
+{
+}
+
+// // DynMetadata<T> -> <U as Pointee>::Metadata
+// #[unstable(feature = "coerce_unsized", issue = "27732")]
+// #[cfg(not(bootstrap))]
+// #[lang = "metadata_coerce_impl"]
+// impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<<U as Pointee>::Metadata> for DynMetadata<T> {}
 
 /// `DispatchFromDyn` is used in the implementation of object safety checks (specifically allowing
 /// arbitrary self types), to guarantee that a method's receiver type can be dispatched on.

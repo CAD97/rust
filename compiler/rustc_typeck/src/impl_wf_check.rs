@@ -150,12 +150,17 @@ fn enforce_impl_params_are_constrained(
             ty::GenericParamDefKind::Type { .. } => {
                 let param_ty = ty::ParamTy::for_def(param);
                 if !input_parameters.contains(&cgp::Parameter::from(param_ty)) {
-                    report_unused_parameter(
-                        tcx,
-                        tcx.def_span(param.def_id),
-                        "type",
-                        &param_ty.to_string(),
-                    );
+                    // UNLESS it's #[lang = "metadata_coerce_impl"], used to impl
+                    // CoerceUnsized<<U as Pointee>::Metadata> for SizedMetadata<T>
+                    let metadata_coerce_impl = tcx.lang_items().metadata_coerce_impl();
+                    if Some(impl_def_id.to_def_id()) != metadata_coerce_impl {
+                        report_unused_parameter(
+                            tcx,
+                            tcx.def_span(param.def_id),
+                            "type",
+                            &param_ty.to_string(),
+                        );
+                    }
                 }
             }
             ty::GenericParamDefKind::Lifetime => {

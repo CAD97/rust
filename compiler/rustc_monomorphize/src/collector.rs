@@ -190,7 +190,7 @@ use rustc_middle::mir::interpret::{ErrorHandled, GlobalAlloc, Scalar};
 use rustc_middle::mir::mono::{InstantiationMode, MonoItem};
 use rustc_middle::mir::visit::Visitor as MirVisitor;
 use rustc_middle::mir::{self, Local, Location};
-use rustc_middle::ty::adjustment::{CustomCoerceUnsized, PointerCast};
+use rustc_middle::ty::adjustment::{CoerceUnsizedKind, PointerCast};
 use rustc_middle::ty::print::with_no_trimmed_paths;
 use rustc_middle::ty::subst::{GenericArgKind, InternalSubsts};
 use rustc_middle::ty::{self, GenericParamDefKind, Instance, Ty, TyCtxt, TypeFoldable, VtblEntry};
@@ -1046,8 +1046,11 @@ fn find_vtable_types_for_unsizing<'tcx>(
         (&ty::Adt(source_adt_def, source_substs), &ty::Adt(target_adt_def, target_substs)) => {
             assert_eq!(source_adt_def, target_adt_def);
 
-            let CustomCoerceUnsized::Struct(coerce_index) =
-                crate::custom_coerce_unsize_info(tcx, source_ty, target_ty);
+            let CoerceUnsizedKind::Struct(coerce_index) =
+                crate::custom_coerce_unsize_info(tcx, source_ty, target_ty)
+            else {
+                bug!("ty::Adt should have a struct `CoerceUnsized` kind");
+            };
 
             let source_fields = &source_adt_def.non_enum_variant().fields;
             let target_fields = &target_adt_def.non_enum_variant().fields;
