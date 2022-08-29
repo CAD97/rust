@@ -16,9 +16,4 @@ fn main() {
     let index_deref_ref = &raw const ARRAY_REF[0];
     let deref_ref = &raw const *SLICE_REF;
     let index_deref_ref = &raw const SLICE_REF[1];
-
-    let x = 0;
-    let ascribe_ref = &raw const (x: i32);
-    let ascribe_deref = &raw const (*ARRAY_REF: [i32; 2]);
-    let ascribe_index_deref = &raw const (ARRAY_REF[0]: i32);
 }

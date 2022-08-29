@@ -1,0 +1,36 @@
+warning: type ascription syntax is going to be removed in the future
+  --> $DIR/stringify.rs:141:32
+   |
+LL |     assert_eq!(stringify_expr!(expr: T), "expr: T");
+   |                                ^^^^^^^
+   |
+   = note: for more information, see RFC #3307 <https://github.com/rust-lang/rfcs/pull/3307>
+
+warning: type ascription syntax is going to be removed in the future
+  --> $DIR/stringify.rs:143:32
+   |
+LL |     assert_eq!(stringify_expr!(expr: T<u8>), "expr: T<u8>");
+   |                                ^^^^^^^^^^^
+   |
+   = note: for more information, see RFC #3307 <https://github.com/rust-lang/rfcs/pull/3307>
+
+warning: 2 warnings emitted
+
+Future incompatibility report: Future breakage diagnostic:
+warning: type ascription syntax is going to be removed in the future
+  --> $DIR/stringify.rs:141:32
+   |
+LL |     assert_eq!(stringify_expr!(expr: T), "expr: T");
+   |                                ^^^^^^^
+   |
+   = note: for more information, see RFC #3307 <https://github.com/rust-lang/rfcs/pull/3307>
+
+Future breakage diagnostic:
+warning: type ascription syntax is going to be removed in the future
+  --> $DIR/stringify.rs:143:32
+   |
+LL |     assert_eq!(stringify_expr!(expr: T<u8>), "expr: T<u8>");
+   |                                ^^^^^^^^^^^
+   |
+   = note: for more information, see RFC #3307 <https://github.com/rust-lang/rfcs/pull/3307>
+

@@ -5,7 +5,8 @@ use rustc_ast::{PatKind, RangeEnd, VariantData};
 use rustc_errors::{struct_span_err, Applicability, StashKey};
 use rustc_feature::Features;
 use rustc_feature::{AttributeGate, BuiltinAttribute, BUILTIN_ATTRIBUTE_MAP};
-use rustc_session::parse::{feature_err, feature_warn};
+use rustc_session::lint::builtin::TYPE_ASCRIPTION_SYNTAX;
+use rustc_session::parse::{feature_err, feature_force_warn, feature_warn};
 use rustc_session::Session;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::sym;
@@ -640,7 +641,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
                     self.sess
                         .parse_sess
                         .span_diagnostic
-                        .steal_diagnostic(e.span, StashKey::EarlySyntaxWarning)
+                        .steal_diagnostic(e.span, StashKey::TypeAscriptionSyntax)
                         .map(|err| err.cancel());
                 }
             }
@@ -816,7 +817,16 @@ pub fn check_crate(krate: &ast::Crate, sess: &Session) {
     gate_all!(exclusive_range_pattern, "exclusive range pattern syntax is experimental");
     gate_all!(try_blocks, "`try` blocks are unstable");
     gate_all!(box_syntax, "box expression syntax is experimental; you can call `Box::new` instead");
-    gate_all!(type_ascription, "type ascription is experimental");
+
+    // Type ascription has its own lint to participate in future-compatibility reports.
+    // Only create these lints if no other errors have been emitted to avoid overload.
+    if sess.parse_sess.span_diagnostic.err_count() == 0 {
+        if let Some(spans) = spans.get(&sym::type_ascription) {
+            for span in spans {
+                feature_force_warn(&visitor.sess.parse_sess, *span, TYPE_ASCRIPTION_SYNTAX);
+            }
+        }
+    }
 
     visit::walk_crate(&mut visitor, krate);
 }

@@ -155,6 +155,20 @@ pub fn feature_warn_issue<'a>(
     err.stash(span, StashKey::EarlySyntaxWarning);
 }
 
+pub fn feature_force_warn<'a>(sess: &'a ParseSess, span: Span, lint: &'static Lint) {
+    let future_incompatible = lint.future_incompatible.as_ref().unwrap();
+    let mut err = sess.span_diagnostic.struct_warn(lint.desc);
+    err.set_span(span);
+    err.code(DiagnosticId::Lint {
+        name: lint.name_lower(),
+        has_future_breakage: true,
+        is_force_warn: false,
+    });
+    err.note(format!("for more information, see {}", future_incompatible.reference));
+
+    err.stash(span, StashKey::TypeAscriptionSyntax);
+}
+
 /// Adds the diagnostics for a feature to an existing error.
 pub fn add_feature_diagnostics<'a>(err: &mut Diagnostic, sess: &'a ParseSess, feature: Symbol) {
     add_feature_diagnostics_for_issue(err, sess, feature, GateIssue::Language);

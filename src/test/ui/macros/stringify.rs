@@ -13,7 +13,6 @@
 #![feature(raw_ref_op)]
 #![feature(trait_alias)]
 #![feature(try_blocks)]
-#![feature(type_ascription)]
 #![deny(unused_macros)]
 
 macro_rules! stringify_block {
@@ -140,7 +139,9 @@ fn test_expr() {
 
     // ExprKind::Type
     assert_eq!(stringify_expr!(expr: T), "expr: T");
+    //~^ WARN: type ascription syntax is going to be removed
     assert_eq!(stringify_expr!(expr: T<u8>), "expr: T<u8>");
+    //~^ WARN: type ascription syntax is going to be removed
 
     // ExprKind::If
     assert_eq!(stringify_expr!(if true {}), "if true {}");

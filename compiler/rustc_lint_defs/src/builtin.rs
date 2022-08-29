@@ -3262,6 +3262,42 @@ declare_lint! {
     };
 }
 
+declare_lint! {
+    /// The `type_ascription_syntax` lint detects the use of the old type ascription
+    /// syntax which is going to be removed in the future. This syntax was previously
+    /// allowed accidentally, despite being unstable, and is now being phased out.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// #[cfg(FALSE)]
+    /// let x = 1: u32;
+    /// ```
+    ///
+    /// {{produces}}
+    ///
+    /// ### Explanation
+    ///
+    /// The old type ascription syntax was accidentally allowed in the past, but
+    /// is now being phased out. The old syntax is too problematic to be stabilized
+    /// as-is, and causes an endless tail of diagnostics problems trying to distinguish
+    /// it from other syntax.
+    ///
+    ///
+    ///
+    /// This is a [future-incompatible] lint to transition this
+    /// to a hard error in the future. See [RFC #3307] for more details.
+    ///
+    /// [RFC #3307]: https://github.com/rust-lang/rfcs/pull/3307
+    /// [future-incompatible]: ../index.md#future-incompatible-lints
+    pub TYPE_ASCRIPTION_SYNTAX,
+    Deny,
+    "type ascription syntax is going to be removed in the future",
+    @future_incompatible = FutureIncompatibleInfo {
+        reference: "RFC #3307 <https://github.com/rust-lang/rfcs/pull/3307>",
+    };
+}
+
 declare_lint_pass! {
     /// Does nothing as a lint pass, but registers some `Lint`s
     /// that are used by other parts of the compiler.
@@ -3331,6 +3367,7 @@ declare_lint_pass! {
         NONTRIVIAL_STRUCTURAL_MATCH,
         SOFT_UNSTABLE,
         UNSTABLE_SYNTAX_PRE_EXPANSION,
+        TYPE_ASCRIPTION_SYNTAX,
         INLINE_NO_SANITIZE,
         BAD_ASM_STYLE,
         ASM_SUB_REGISTER,
