@@ -67,8 +67,18 @@ impl<'tcx> Bounds<'tcx> {
     }
 
     pub fn push_sized(&mut self, tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, span: Span) {
-        let sized_def_id = tcx.require_lang_item(LangItem::Sized, Some(span));
-        let trait_ref = ty::TraitRef::new(tcx, sized_def_id, [ty]);
+        // Sized implies MetaSized
+        if tcx.lang_items().meta_sized_trait().is_some() {
+            self.push_meta_sized(tcx, ty, span);
+        }
+
+        let trait_ref = ty::TraitRef::from_lang_item(tcx, LangItem::Sized, span, [ty]);
+        // Preferable to put this obligation first, since we report better errors for sized ambiguity.
+        self.clauses.insert(0, (trait_ref.to_predicate(tcx), span));
+    }
+
+    pub fn push_meta_sized(&mut self, tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, span: Span) {
+        let trait_ref = ty::TraitRef::from_lang_item(tcx, LangItem::MetaSized, span, [ty]);
         // Preferable to put this obligation first, since we report better errors for sized ambiguity.
         self.clauses.insert(0, (trait_ref.to_predicate(tcx), span));
     }

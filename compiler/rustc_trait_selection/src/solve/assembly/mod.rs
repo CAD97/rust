@@ -194,11 +194,20 @@ pub(super) trait GoalKind<'tcx>:
         goal: Goal<'tcx, Self>,
     ) -> QueryResult<'tcx>;
 
-    /// A type is `Copy` or `Clone` if its components are `Sized`.
+    /// A type is `Sized` if its components are `Sized`.
     ///
     /// These components are given by built-in rules from
     /// [`structural_traits::instantiate_constituent_tys_for_sized_trait`].
     fn consider_builtin_sized_candidate(
+        ecx: &mut EvalCtxt<'_, 'tcx>,
+        goal: Goal<'tcx, Self>,
+    ) -> QueryResult<'tcx>;
+
+    /// A type is `MetaSized` if its components are `MetaSized`.
+    ///
+    /// These components are given by built-in rules from
+    /// [`structural_traits::instantiate_constituent_tys_for_meta_sized_trait`].
+    fn consider_builtin_meta_sized_candidate(
         ecx: &mut EvalCtxt<'_, 'tcx>,
         goal: Goal<'tcx, Self>,
     ) -> QueryResult<'tcx>;
@@ -594,6 +603,8 @@ impl<'tcx> EvalCtxt<'_, 'tcx> {
             G::consider_trait_alias_candidate(self, goal)
         } else if lang_items.sized_trait() == Some(trait_def_id) {
             G::consider_builtin_sized_candidate(self, goal)
+        } else if lang_items.meta_sized_trait() == Some(trait_def_id) {
+            G::consider_builtin_meta_sized_candidate(self, goal)
         } else if lang_items.copy_trait() == Some(trait_def_id)
             || lang_items.clone_trait() == Some(trait_def_id)
         {

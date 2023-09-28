@@ -46,7 +46,15 @@ impl<'tcx> LateLintPass<'tcx> for MultipleSupertraitUpcastable {
                     .super_predicates_of(def_id)
                     .predicates
                     .into_iter()
-                    .filter_map(|(pred, _)| pred.as_trait_clause());
+                    .filter_map(|(pred, _)| pred.as_trait_clause())
+                    .filter(|pred| {
+                        // HACK(cad97): ignore MetaSized, which is added by the compiler and not the user.
+                        if let Some(meta_sized) = cx.tcx.lang_items().meta_sized_trait() {
+                            pred.def_id() != meta_sized
+                        } else {
+                            true
+                        }
+                    });
             if direct_super_traits_iter.count() > 1 {
                 cx.emit_spanned_lint(
                     MULTIPLE_SUPERTRAIT_UPCASTABLE,

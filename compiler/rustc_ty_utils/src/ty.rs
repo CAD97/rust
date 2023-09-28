@@ -80,6 +80,89 @@ fn sized_constraint_for_ty<'tcx>(
     result
 }
 
+fn meta_sized_constraint_for_ty<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    adtdef: ty::AdtDef<'tcx>,
+    ty: Ty<'tcx>,
+) -> Vec<Ty<'tcx>> {
+    use rustc_type_ir::sty::TyKind::*;
+
+    let result = match ty.kind() {
+        Bool | Char | Int(..) | Uint(..) | Float(..) | RawPtr(..) | Ref(..) | FnDef(..)
+        | FnPtr(_) | Array(..) | Closure(..) | Generator(..) | Never => vec![],
+
+        Str
+        | Dynamic(..)
+        | Slice(_)
+        | Error(_)
+        | GeneratorWitness(..)
+        | GeneratorWitnessMIR(..) => {
+            // these are meta sized but not sized
+            vec![]
+        }
+
+        Foreign(..) => {
+            // the cause of all !MetaSized types - return the target type
+            vec![ty]
+        }
+
+        Tuple(ref tys) => match tys.last() {
+            None => vec![],
+            Some(&ty) => meta_sized_constraint_for_ty(tcx, adtdef, ty),
+        },
+
+        Adt(adt, args) => {
+            // recursive case
+            let adt_tys = adt.meta_sized_constraint(tcx);
+            debug!("meta_sized_constraint_for_ty({:?}) intermediate = {:?}", ty, adt_tys);
+            adt_tys
+                .iter_instantiated(tcx, args)
+                .flat_map(|ty| meta_sized_constraint_for_ty(tcx, adtdef, ty))
+                .collect()
+        }
+
+        Alias(..) => {
+            // must calculate explicitly.
+            // FIXME: consider special-casing always-Sized projections
+            vec![ty]
+        }
+
+        Param(..) => {
+            // perf hack: if there is a `T: MetaSized` bound, then we know
+            // that `T` is MetaSized and do not need to check it on the impl.
+            // The same goes for `Sized`, which implies `MetaSized`.
+
+            macro_rules! quick_accept_with_bound {
+                ($block:tt: $lang_item:ident) => {
+                    if let Some(did) = tcx.lang_items().$lang_item() {
+                        let predicates = tcx.predicates_of(adtdef.did()).predicates;
+                        if predicates.iter().any(|(p, _)| {
+                            p.as_trait_clause().is_some_and(|trait_pred| {
+                                trait_pred.def_id() == did
+                                    && trait_pred.self_ty().skip_binder() == ty
+                            })
+                        }) {
+                            break $block vec![];
+                        }
+                    }
+                }
+            }
+
+            'block: {
+                quick_accept_with_bound!('block: meta_sized_trait);
+                quick_accept_with_bound!('block: sized_trait);
+                vec![ty]
+            }
+        }
+
+        Placeholder(..) | Bound(..) | Infer(..) => {
+            bug!("unexpected type `{:?}` in meta_sized_constraint_for_ty", ty)
+        }
+    };
+    debug!("meta_sized_constraint_for_ty({:?}) = {:?}", ty, result);
+    result
+}
+
 fn defaultness(tcx: TyCtxt<'_>, def_id: LocalDefId) -> hir::Defaultness {
     match tcx.hir().get_by_def_id(def_id) {
         hir::Node::Item(hir::Item { kind: hir::ItemKind::Impl(impl_), .. }) => impl_.defaultness,
@@ -116,6 +199,28 @@ fn adt_sized_constraint<'tcx>(
         ));
 
     debug!("adt_sized_constraint: {:?} => {:?}", def, result);
+
+    ty::EarlyBinder::bind(result)
+}
+
+/// Calculates the `MetaSized` constraint.
+fn adt_meta_sized_constraint<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+) -> ty::EarlyBinder<&'tcx ty::List<Ty<'tcx>>> {
+    if let Some(def_id) = def_id.as_local() {
+        if matches!(tcx.representability(def_id), ty::Representability::Infinite) {
+            return ty::EarlyBinder::bind(tcx.mk_type_list(&[Ty::new_misc_error(tcx)]));
+        }
+    }
+    let def = tcx.adt_def(def_id);
+
+    let result =
+        tcx.mk_type_list_from_iter(def.variants().iter().filter_map(|v| v.tail_opt()).flat_map(
+            |f| meta_sized_constraint_for_ty(tcx, def, tcx.type_of(f.did).instantiate_identity()),
+        ));
+
+    debug!("adt_meta_sized_constraint: {:?} => {:?}", def, result);
 
     ty::EarlyBinder::bind(result)
 }
@@ -352,6 +457,7 @@ pub fn provide(providers: &mut Providers) {
     *providers = Providers {
         asyncness,
         adt_sized_constraint,
+        adt_meta_sized_constraint,
         param_env,
         param_env_reveal_all_normalized,
         issue33140_self_ty,

@@ -1,3 +1,5 @@
+use core::marker::MetaSized;
+
 /// Used for immutable dereferencing operations, like `*v`.
 ///
 /// In addition to being used for explicit dereferencing operations with the
@@ -191,7 +193,7 @@ pub trait Receiver {
 }
 
 #[unstable(feature = "receiver_trait", issue = "none")]
-impl<T: ?Sized> Receiver for &T {}
+impl<T: ?MetaSized> Receiver for &T {}
 
 #[unstable(feature = "receiver_trait", issue = "none")]
-impl<T: ?Sized> Receiver for &mut T {}
+impl<T: ?MetaSized> Receiver for &mut T {}

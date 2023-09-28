@@ -967,6 +967,7 @@ symbols! {
         memtag,
         message,
         meta,
+        meta_sized,
         metadata_type,
         min_align_of,
         min_align_of_val,

@@ -567,6 +567,15 @@ impl<'tcx> AdtDef<'tcx> {
     pub fn sized_constraint(self, tcx: TyCtxt<'tcx>) -> ty::EarlyBinder<&'tcx ty::List<Ty<'tcx>>> {
         tcx.adt_sized_constraint(self.did())
     }
+
+    /// Returns a list of types such that `Self: MetaSized` if and only if that
+    /// type is `MetaSized`, or `ty::Error` if this type has a recursive layout.
+    pub fn meta_sized_constraint(
+        self,
+        tcx: TyCtxt<'tcx>,
+    ) -> ty::EarlyBinder<&'tcx ty::List<Ty<'tcx>>> {
+        tcx.adt_meta_sized_constraint(self.did())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

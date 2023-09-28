@@ -84,9 +84,9 @@ pub unsafe auto trait Send {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> !Send for *const T {}
+impl<T: ?MetaSized> !Send for *const T {}
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> !Send for *mut T {}
+impl<T: ?MetaSized> !Send for *mut T {}
 
 // Most instances arise automatically, but this instance is needed to link up `T: Sync` with
 // `&T: Send` (and it also removes the unsound default instance `T Send` -> `&T: Send` that would
@@ -131,6 +131,7 @@ unsafe impl<T: Sync + ?Sized> Send for &T {}
 /// ```
 ///
 /// [trait object]: ../../book/ch17-02-trait-objects.html
+#[cfg(bootstrap)]
 #[doc(alias = "?", alias = "?Sized")]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[lang = "sized"]
@@ -143,6 +144,97 @@ unsafe impl<T: Sync + ?Sized> Send for &T {}
 #[rustc_deny_explicit_impl(implement_via_object = false)]
 #[rustc_coinductive]
 pub trait Sized {
+    // Empty.
+}
+
+/// Types with a constant size known at compile time.
+///
+/// All type parameters have an implicit bound of `Sized`. The special syntax
+/// `?Sized` can be used to remove this bound if it's not appropriate.
+///
+/// ```
+/// # #![allow(dead_code)]
+/// struct Foo<T>(T);
+/// struct Bar<T: ?Sized>(T);
+///
+/// // struct FooUse(Foo<[i32]>); // error: Sized is not implemented for [i32]
+/// struct BarUse(Bar<[i32]>); // OK
+/// ```
+///
+/// The one exception is the implicit `Self` type of a trait. A trait does not
+/// have an implicit `Sized` bound as this is incompatible with [trait object]s
+/// where, by definition, the trait needs to work with all possible implementors,
+/// and thus could be any size.
+///
+/// Although Rust will let you bind `Sized` to a trait, you won't
+/// be able to use it to form a trait object later:
+///
+/// ```
+/// # #![allow(unused_variables)]
+/// trait Foo { }
+/// trait Bar: Sized { }
+///
+/// struct Impl;
+/// impl Foo for Impl { }
+/// impl Bar for Impl { }
+///
+/// let x: &dyn Foo = &Impl;    // OK
+/// // let y: &dyn Bar = &Impl; // error: the trait `Bar` cannot
+///                             // be made into an object
+/// ```
+///
+/// [trait object]: ../../book/ch17-02-trait-objects.html
+#[cfg(not(bootstrap))]
+#[doc(alias = "?", alias = "?Sized")]
+#[stable(feature = "rust1", since = "1.0.0")]
+#[lang = "sized"]
+#[rustc_on_unimplemented(
+    message = "the size for values of type `{Self}` cannot be known at compilation time",
+    label = "doesn't have a size known at compile-time"
+)]
+#[fundamental] // for Default, for example, which requires that `[T]: !Default` be evaluatable
+#[rustc_specialization_trait]
+#[rustc_deny_explicit_impl(implement_via_object = false)]
+#[rustc_coinductive]
+pub trait Sized: MetaSized {
+    // Empty.
+}
+
+// make bootstrap easier
+#[cfg(bootstrap)]
+#[unstable(feature = "meta_sized", issue = "none")]
+pub use Sized as MetaSized;
+
+/// Types which have a size determined by their pointer metadata.
+///
+/// All type parameters have an implicit bound of `MetaSized`. Like `Sized`,
+/// this bound can be removed with a special bound of `?MetaSized`.
+///
+//  TODO: trait `Self` should be bound by `MetaSized`, unlike with `Sized`.
+///
+/// All types defined in Rust are `MetaSized`. Foreign types without a Rust
+/// definition, however, do not have a known size, and are thus not `MetaSized`.
+#[cfg(not(bootstrap))]
+#[unstable(feature = "meta_sized", issue = "none")]
+#[lang = "meta_sized"]
+#[rustc_on_unimplemented(
+    message = "the size for values of type `{Self}` cannot be known",
+    label = "is potentially an external type"
+)]
+#[fundamental]
+#[rustc_specialization_trait]
+#[rustc_deny_explicit_impl(implement_via_object = false)]
+#[rustc_coinductive]
+pub trait MetaSized {
+    // Empty.
+}
+
+/// Types that can be "unsized" to a dynamically-sized type.
+#[unstable(feature = "unsize", issue = "18598")]
+#[lang = "unsize"]
+#[rustc_deny_explicit_impl(implement_via_object = false)]
+#[cfg(bootstrap)]
+pub trait Unsize<T: ?Sized> {
     // Empty.
 }
 
@@ -174,7 +266,8 @@ pub trait Sized {
 #[unstable(feature = "unsize", issue = "18598")]
 #[lang = "unsize"]
 #[rustc_deny_explicit_impl(implement_via_object = false)]
-pub trait Unsize<T: ?Sized> {
+#[cfg(not(bootstrap))]
+pub trait Unsize<T: ?MetaSized>: ?MetaSized {
     // Empty.
 }
 
@@ -216,7 +309,7 @@ marker_impls! {
         (),
         {T, const N: usize} [T; N],
         {T} [T],
-        {T: ?Sized} &T,
+        {T: ?MetaSized} &T,
 }
 
 /// Required trait for constants used in pattern matches.
@@ -284,7 +377,7 @@ marker_impls! {
         (),
         {T, const N: usize} [T; N],
         {T} [T],
-        {T: ?Sized} &T,
+        {T: ?MetaSized} &T,
 }
 
 /// Types whose values can be duplicated simply by copying bits.
@@ -486,8 +579,8 @@ marker_impls! {
         isize, i8, i16, i32, i64, i128,
         f32, f64,
         bool, char,
-        {T: ?Sized} *const T,
-        {T: ?Sized} *mut T,
+        {T: ?MetaSized} *const T,
+        {T: ?MetaSized} *mut T,
 
 }
 
@@ -496,7 +589,7 @@ impl Copy for ! {}
 
 /// Shared references can be copied, but mutable references *cannot*!
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Copy for &T {}
+impl<T: ?MetaSized> Copy for &T {}
 
 /// Types for which it is safe to share references between threads.
 ///
@@ -646,9 +739,9 @@ pub unsafe auto trait Sync {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> !Sync for *const T {}
+impl<T: ?MetaSized> !Sync for *const T {}
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> !Sync for *mut T {}
+impl<T: ?MetaSized> !Sync for *mut T {}
 
 /// Zero-sized type used to mark things that "act like" they own a `T`.
 ///
@@ -786,60 +879,60 @@ impl<T: ?Sized> !Sync for *mut T {}
 /// [drop check]: Drop#drop-check
 #[lang = "phantom_data"]
 #[stable(feature = "rust1", since = "1.0.0")]
-pub struct PhantomData<T: ?Sized>;
+pub struct PhantomData<T: ?MetaSized>;
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Hash for PhantomData<T> {
+impl<T: ?MetaSized> Hash for PhantomData<T> {
     #[inline]
     fn hash<H: Hasher>(&self, _: &mut H) {}
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> cmp::PartialEq for PhantomData<T> {
+impl<T: ?MetaSized> cmp::PartialEq for PhantomData<T> {
     fn eq(&self, _other: &PhantomData<T>) -> bool {
         true
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> cmp::Eq for PhantomData<T> {}
+impl<T: ?MetaSized> cmp::Eq for PhantomData<T> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> cmp::PartialOrd for PhantomData<T> {
+impl<T: ?MetaSized> cmp::PartialOrd for PhantomData<T> {
     fn partial_cmp(&self, _other: &PhantomData<T>) -> Option<cmp::Ordering> {
         Option::Some(cmp::Ordering::Equal)
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> cmp::Ord for PhantomData<T> {
+impl<T: ?MetaSized> cmp::Ord for PhantomData<T> {
     fn cmp(&self, _other: &PhantomData<T>) -> cmp::Ordering {
         cmp::Ordering::Equal
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Copy for PhantomData<T> {}
+impl<T: ?MetaSized> Copy for PhantomData<T> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Clone for PhantomData<T> {
+impl<T: ?MetaSized> Clone for PhantomData<T> {
     fn clone(&self) -> Self {
         Self
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Default for PhantomData<T> {
+impl<T: ?MetaSized> Default for PhantomData<T> {
     fn default() -> Self {
         Self
     }
 }
 
 #[unstable(feature = "structural_match", issue = "31434")]
-impl<T: ?Sized> StructuralPartialEq for PhantomData<T> {}
+impl<T: ?MetaSized> StructuralPartialEq for PhantomData<T> {}
 
 #[unstable(feature = "structural_match", issue = "31434")]
-impl<T: ?Sized> StructuralEq for PhantomData<T> {}
+impl<T: ?MetaSized> StructuralEq for PhantomData<T> {}
 
 /// Compiler-internal trait used to indicate the type of enum discriminants.
 ///
@@ -869,14 +962,14 @@ pub trait DiscriminantKind {
 #[lang = "freeze"]
 pub(crate) unsafe auto trait Freeze {}
 
-impl<T: ?Sized> !Freeze for UnsafeCell<T> {}
+impl<T: ?MetaSized> !Freeze for UnsafeCell<T> {}
 marker_impls! {
     unsafe Freeze for
-        {T: ?Sized} PhantomData<T>,
-        {T: ?Sized} *const T,
-        {T: ?Sized} *mut T,
-        {T: ?Sized} &T,
-        {T: ?Sized} &mut T,
+        {T: ?MetaSized} PhantomData<T>,
+        {T: ?MetaSized} *const T,
+        {T: ?MetaSized} *mut T,
+        {T: ?MetaSized} &T,
+        {T: ?MetaSized} &mut T,
 }
 
 /// Types that can be safely moved after being pinned.
@@ -941,15 +1034,15 @@ impl !Unpin for PhantomPinned {}
 marker_impls! {
     #[stable(feature = "pin", since = "1.33.0")]
     Unpin for
-        {T: ?Sized} &T,
-        {T: ?Sized} &mut T,
+        {T: ?MetaSized} &T,
+        {T: ?MetaSized} &mut T,
 }
 
 marker_impls! {
     #[stable(feature = "pin_raw", since = "1.38.0")]
     Unpin for
-        {T: ?Sized} *const T,
-        {T: ?Sized} *mut T,
+        {T: ?MetaSized} *const T,
+        {T: ?MetaSized} *mut T,
 }
 
 /// A marker for types that can be dropped.

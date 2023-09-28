@@ -4,7 +4,7 @@ use crate::intrinsics::{self, const_eval_select};
 use crate::mem::SizedTypeProperties;
 use crate::slice::{self, SliceIndex};
 
-impl<T: ?Sized> *mut T {
+impl<T: ?MetaSized> *mut T {
     /// Returns `true` if the pointer is null.
     ///
     /// Note that unsized types have many possible null pointers, as only the
@@ -95,7 +95,7 @@ impl<T: ?Sized> *mut T {
     #[inline]
     pub const fn with_metadata_of<U>(self, meta: *const U) -> *mut U
     where
-        U: ?Sized,
+        U: ?MetaSized,
     {
         from_raw_parts_mut::<U>(self as *mut (), metadata(meta))
     }
@@ -1439,7 +1439,10 @@ impl<T: ?Sized> *mut T {
     /// [`ptr::drop_in_place`]: crate::ptr::drop_in_place()
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline(always)]
-    pub unsafe fn drop_in_place(self) {
+    pub unsafe fn drop_in_place(self)
+    where
+        T: MetaSized,
+    {
         // SAFETY: the caller must uphold the safety contract for `drop_in_place`.
         unsafe { drop_in_place(self) }
     }
@@ -2165,7 +2168,7 @@ impl<T> *mut [T] {
 
 // Equality for pointers
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> PartialEq for *mut T {
+impl<T: ?MetaSized> PartialEq for *mut T {
     #[inline(always)]
     fn eq(&self, other: &*mut T) -> bool {
         *self == *other
@@ -2173,10 +2176,10 @@ impl<T: ?Sized> PartialEq for *mut T {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Eq for *mut T {}
+impl<T: ?MetaSized> Eq for *mut T {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Ord for *mut T {
+impl<T: ?MetaSized> Ord for *mut T {
     #[inline]
     fn cmp(&self, other: &*mut T) -> Ordering {
         if self < other {
@@ -2190,7 +2193,7 @@ impl<T: ?Sized> Ord for *mut T {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> PartialOrd for *mut T {
+impl<T: ?MetaSized> PartialOrd for *mut T {
     #[inline(always)]
     fn partial_cmp(&self, other: &*mut T) -> Option<Ordering> {
         Some(self.cmp(other))

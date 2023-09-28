@@ -302,6 +302,13 @@ impl<'tcx> assembly::GoalKind<'tcx> for ProjectionPredicate<'tcx> {
         bug!("`Sized` does not have an associated type: {:?}", goal);
     }
 
+    fn consider_builtin_meta_sized_candidate(
+        _ecx: &mut EvalCtxt<'_, 'tcx>,
+        goal: Goal<'tcx, Self>,
+    ) -> QueryResult<'tcx> {
+        bug!("`MetaSized` does not have an associated type: {:?}", goal);
+    }
+
     fn consider_builtin_copy_clone_candidate(
         _ecx: &mut EvalCtxt<'_, 'tcx>,
         goal: Goal<'tcx, Self>,

@@ -87,6 +87,11 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 // always automatically computed.
                 let sized_conditions = self.sized_conditions(obligation);
                 self.assemble_builtin_bound_candidates(sized_conditions, &mut candidates);
+            } else if lang_items.meta_sized_trait() == Some(def_id) {
+                // MetaSized is never implementable by end-users, it is
+                // always automatically computed.
+                let meta_sized_conditions = self.meta_sized_conditions(obligation);
+                self.assemble_builtin_bound_candidates(meta_sized_conditions, &mut candidates);
             } else if lang_items.unsize_trait() == Some(def_id) {
                 self.assemble_candidates_for_unsizing(obligation, &mut candidates);
             } else if lang_items.destruct_trait() == Some(def_id) {

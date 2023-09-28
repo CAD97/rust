@@ -1328,11 +1328,16 @@ impl<'tcx> TypeErrCtxtExt<'tcx> for TypeErrCtxt<'_, 'tcx> {
         // List of traits for which it would be nonsensical to suggest borrowing.
         // For instance, immutable references are always Copy, so suggesting to
         // borrow would always succeed, but it's probably not what the user wanted.
-        let mut never_suggest_borrow: Vec<_> =
-            [LangItem::Copy, LangItem::Clone, LangItem::Unpin, LangItem::Sized]
-                .iter()
-                .filter_map(|lang_item| self.tcx.lang_items().get(*lang_item))
-                .collect();
+        let mut never_suggest_borrow: Vec<_> = [
+            LangItem::Copy,
+            LangItem::Clone,
+            LangItem::Unpin,
+            LangItem::Sized,
+            LangItem::MetaSized,
+        ]
+        .iter()
+        .filter_map(|lang_item| self.tcx.lang_items().get(*lang_item))
+        .collect();
 
         if let Some(def_id) = self.tcx.get_diagnostic_item(sym::Send) {
             never_suggest_borrow.push(def_id);

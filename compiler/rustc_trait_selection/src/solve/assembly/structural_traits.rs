@@ -156,6 +156,50 @@ pub(in crate::solve) fn instantiate_constituent_tys_for_sized_trait<'tcx>(
     }
 }
 
+pub(in crate::solve) fn instantiate_constituent_tys_for_meta_sized_trait<'tcx>(
+    ecx: &EvalCtxt<'_, 'tcx>,
+    ty: Ty<'tcx>,
+) -> Result<Vec<Ty<'tcx>>, NoSolution> {
+    match *ty.kind() {
+        ty::Infer(ty::IntVar(_) | ty::FloatVar(_))
+        | ty::Uint(_)
+        | ty::Int(_)
+        | ty::Bool
+        | ty::Float(_)
+        | ty::FnDef(..)
+        | ty::FnPtr(_)
+        | ty::RawPtr(..)
+        | ty::Char
+        | ty::Ref(..)
+        | ty::Generator(..)
+        | ty::GeneratorWitness(..)
+        | ty::GeneratorWitnessMIR(..)
+        | ty::Array(..)
+        | ty::Closure(..)
+        | ty::Never
+        | ty::Dynamic(_, _, ty::DynStar)
+        | ty::Error(_)
+        | ty::Str
+        | ty::Slice(_) => Ok(vec![]),
+
+        ty::Dynamic(..) | ty::Foreign(..) | ty::Alias(..) | ty::Param(_) | ty::Placeholder(..) => {
+            Err(NoSolution)
+        }
+
+        ty::Bound(..)
+        | ty::Infer(ty::TyVar(_) | ty::FreshTy(_) | ty::FreshIntTy(_) | ty::FreshFloatTy(_)) => {
+            bug!("unexpected type `{ty}`")
+        }
+
+        ty::Tuple(tys) => Ok(tys.to_vec()),
+
+        ty::Adt(def, args) => {
+            let meta_sized_crit = def.meta_sized_constraint(ecx.tcx());
+            Ok(meta_sized_crit.iter_instantiated(ecx.tcx(), args).collect())
+        }
+    }
+}
+
 pub(in crate::solve) fn instantiate_constituent_tys_for_copy_clone_trait<'tcx>(
     ecx: &EvalCtxt<'_, 'tcx>,
     ty: Ty<'tcx>,

@@ -4,7 +4,7 @@ use crate::intrinsics::{self, const_eval_select};
 use crate::mem::{self, SizedTypeProperties};
 use crate::slice::{self, SliceIndex};
 
-impl<T: ?Sized> *const T {
+impl<T: ?MetaSized> *const T {
     /// Returns `true` if the pointer is null.
     ///
     /// Note that unsized types have many possible null pointers, as only the
@@ -95,7 +95,7 @@ impl<T: ?Sized> *const T {
     #[inline]
     pub const fn with_metadata_of<U>(self, meta: *const U) -> *const U
     where
-        U: ?Sized,
+        U: ?MetaSized,
     {
         from_raw_parts::<U>(self as *const (), metadata(meta))
     }
@@ -1723,7 +1723,7 @@ impl<T> *const [T] {
 
 // Equality for pointers
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> PartialEq for *const T {
+impl<T: ?MetaSized> PartialEq for *const T {
     #[inline]
     fn eq(&self, other: &*const T) -> bool {
         *self == *other
@@ -1731,11 +1731,11 @@ impl<T: ?Sized> PartialEq for *const T {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Eq for *const T {}
+impl<T: ?MetaSized> Eq for *const T {}
 
 // Comparison for pointers
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> Ord for *const T {
+impl<T: ?MetaSized> Ord for *const T {
     #[inline]
     fn cmp(&self, other: &*const T) -> Ordering {
         if self < other {
@@ -1749,7 +1749,7 @@ impl<T: ?Sized> Ord for *const T {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized> PartialOrd for *const T {
+impl<T: ?MetaSized> PartialOrd for *const T {
     #[inline]
     fn partial_cmp(&self, other: &*const T) -> Option<Ordering> {
         Some(self.cmp(other))

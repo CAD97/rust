@@ -374,7 +374,7 @@ use crate::hash;
 use crate::intrinsics::{
     self, assert_unsafe_precondition, is_aligned_and_not_null, is_nonoverlapping,
 };
-use crate::marker::FnPtr;
+use crate::marker::{FnPtr, MetaSized};
 
 use crate::mem::{self, MaybeUninit};
 
@@ -1863,7 +1863,7 @@ pub(crate) const unsafe fn align_offset<T: Sized>(p: *const T, a: usize) -> usiz
 /// ```
 #[stable(feature = "ptr_eq", since = "1.17.0")]
 #[inline(always)]
-pub fn eq<T: ?Sized>(a: *const T, b: *const T) -> bool {
+pub fn eq<T: ?MetaSized>(a: *const T, b: *const T) -> bool {
     a == b
 }
 
@@ -1894,7 +1894,7 @@ pub fn eq<T: ?Sized>(a: *const T, b: *const T) -> bool {
 /// assert_eq!(actual, expected);
 /// ```
 #[stable(feature = "ptr_hash", since = "1.35.0")]
-pub fn hash<T: ?Sized, S: hash::Hasher>(hashee: *const T, into: &mut S) {
+pub fn hash<T: ?MetaSized, S: hash::Hasher>(hashee: *const T, into: &mut S) {
     use crate::hash::Hash;
     hashee.hash(into);
 }

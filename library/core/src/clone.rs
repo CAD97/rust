@@ -211,6 +211,7 @@ pub struct AssertParamIsCopy<T: Copy + ?Sized> {
 /// in `rustc_trait_selection`.
 mod impls {
     use super::Clone;
+    use crate::marker::MetaSized;
 
     macro_rules! impl_clone {
         ($($t:ty)*) => {
@@ -242,7 +243,7 @@ mod impls {
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
-    impl<T: ?Sized> Clone for *const T {
+    impl<T: ?MetaSized> Clone for *const T {
         #[inline(always)]
         fn clone(&self) -> Self {
             *self
@@ -250,7 +251,7 @@ mod impls {
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
-    impl<T: ?Sized> Clone for *mut T {
+    impl<T: ?MetaSized> Clone for *mut T {
         #[inline(always)]
         fn clone(&self) -> Self {
             *self
@@ -259,7 +260,7 @@ mod impls {
 
     /// Shared references can be cloned, but mutable references *cannot*!
     #[stable(feature = "rust1", since = "1.0.0")]
-    impl<T: ?Sized> Clone for &T {
+    impl<T: ?MetaSized> Clone for &T {
         #[inline(always)]
         #[rustc_diagnostic_item = "noop_method_clone"]
         fn clone(&self) -> Self {
@@ -269,5 +270,5 @@ mod impls {
 
     /// Shared references can be cloned, but mutable references *cannot*!
     #[stable(feature = "rust1", since = "1.0.0")]
-    impl<T: ?Sized> !Clone for &mut T {}
+    impl<T: ?MetaSized> !Clone for &mut T {}
 }

@@ -1,4 +1,4 @@
-use crate::marker::Unsize;
+use crate::marker::{MetaSized, Unsize};
 
 /// Trait that indicates that this is a pointer or a wrapper for one,
 /// where unsizing can be performed on the pointee.
@@ -120,13 +120,13 @@ pub trait DispatchFromDyn<T> {
 
 // &T -> &U
 #[unstable(feature = "dispatch_from_dyn", issue = "none")]
-impl<'a, T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<&'a U> for &'a T {}
+impl<'a, T: ?MetaSized + Unsize<U>, U: ?MetaSized> DispatchFromDyn<&'a U> for &'a T {}
 // &mut T -> &mut U
 #[unstable(feature = "dispatch_from_dyn", issue = "none")]
-impl<'a, T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<&'a mut U> for &'a mut T {}
+impl<'a, T: ?MetaSized + Unsize<U>, U: ?MetaSized> DispatchFromDyn<&'a mut U> for &'a mut T {}
 // *const T -> *const U
 #[unstable(feature = "dispatch_from_dyn", issue = "none")]
-impl<T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<*const U> for *const T {}
+impl<T: ?MetaSized + Unsize<U>, U: ?MetaSized> DispatchFromDyn<*const U> for *const T {}
 // *mut T -> *mut U
 #[unstable(feature = "dispatch_from_dyn", issue = "none")]
-impl<T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<*mut U> for *mut T {}
+impl<T: ?MetaSized + Unsize<U>, U: ?MetaSized> DispatchFromDyn<*mut U> for *mut T {}

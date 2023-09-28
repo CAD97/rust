@@ -16,18 +16,14 @@ use crate::bounds::Bounds;
 use crate::errors;
 
 impl<'tcx> dyn AstConv<'tcx> + '_ {
-    /// Sets `implicitly_sized` to true on `Bounds` if necessary
-    pub(crate) fn add_implicitly_sized(
+    /// Try to find an unbound in bounds.
+    fn find_unbound(
         &self,
-        bounds: &mut Bounds<'tcx>,
-        self_ty: Ty<'tcx>,
         ast_bounds: &'tcx [hir::GenericBound<'tcx>],
         self_ty_where_predicates: Option<(LocalDefId, &'tcx [hir::WherePredicate<'tcx>])>,
         span: Span,
-    ) {
+    ) -> Option<&'tcx hir::TraitRef<'tcx>> {
         let tcx = self.tcx();
-
-        // Try to find an unbound in bounds.
         let mut unbound = None;
         let mut search_bounds = |ast_bounds: &'tcx [hir::GenericBound<'tcx>]| {
             for ab in ast_bounds {
@@ -50,16 +46,41 @@ impl<'tcx> dyn AstConv<'tcx> + '_ {
                 }
             }
         }
+        unbound
+    }
+
+    /// Adds `Sized` (and `MetaSized`) bound to `Bounds` if necessary
+    pub(crate) fn add_implicitly_sized(
+        &self,
+        bounds: &mut Bounds<'tcx>,
+        self_ty: Ty<'tcx>,
+        ast_bounds: &'tcx [hir::GenericBound<'tcx>],
+        self_ty_where_predicates: Option<(LocalDefId, &'tcx [hir::WherePredicate<'tcx>])>,
+        span: Span,
+    ) {
+        let tcx = self.tcx();
+
+        let unbound = self.find_unbound(ast_bounds, self_ty_where_predicates, span);
 
         let sized_def_id = tcx.lang_items().sized_trait();
-        match (&sized_def_id, unbound) {
-            (Some(sized_def_id), Some(tpb))
+        let meta_sized_def_id = tcx.lang_items().meta_sized_trait();
+        match (&sized_def_id, &meta_sized_def_id, unbound) {
+            (Some(sized_def_id), _, Some(tpb))
                 if tpb.path.res == Res::Def(DefKind::Trait, *sized_def_id) =>
             {
-                // There was in fact a `?Sized` bound, return without doing anything
+                // There was in fact a `?Sized` bound; add `MetaSized` but not `Sized` bound
+                if meta_sized_def_id.is_some() {
+                    bounds.push_meta_sized(tcx, self_ty, span);
+                }
                 return;
             }
-            (_, Some(_)) => {
+            (_, Some(meta_sized_def_id), Some(tpb))
+                if tpb.path.res == Res::Def(DefKind::Trait, *meta_sized_def_id) =>
+            {
+                // There was in fact a `?MetaSized` bound; return without doing anything
+                return;
+            }
+            (_, _, Some(_)) => {
                 // There was a `?Trait` bound, but it was not `?Sized`; warn.
                 tcx.sess.span_warn(
                     span,
@@ -78,6 +99,38 @@ impl<'tcx> dyn AstConv<'tcx> + '_ {
             return;
         }
         bounds.push_sized(tcx, self_ty, span);
+    }
+
+    /// Adds `MetaSized` bound to `Bounds` if necessary
+    pub(crate) fn add_implicitly_meta_sized(
+        &self,
+        bounds: &mut Bounds<'tcx>,
+        self_ty: Ty<'tcx>,
+        ast_bounds: &'tcx [hir::GenericBound<'tcx>],
+        self_ty_where_predicates: Option<(LocalDefId, &'tcx [hir::WherePredicate<'tcx>])>,
+        span: Span,
+    ) {
+        let tcx = self.tcx();
+
+        let unbound = self.find_unbound(ast_bounds, self_ty_where_predicates, span);
+
+        let meta_sized_def_id = tcx.lang_items().meta_sized_trait();
+        match (&meta_sized_def_id, unbound) {
+            (Some(meta_sized_def_id), Some(tpb))
+                if tpb.path.res == Res::Def(DefKind::Trait, *meta_sized_def_id) =>
+            {
+                // There was in fact a `?MetaSized` bound; return without doing anything
+                return;
+            }
+            _ => {
+                // There was no `?MetaSized` bound; add implicit if `MetaSized` is available.
+            }
+        }
+        if meta_sized_def_id.is_none() {
+            // No lang item for `MetaSized`, so we can't add it as a bound.
+            return;
+        }
+        bounds.push_meta_sized(tcx, self_ty, span);
     }
 
     /// This helper takes a *converted* parameter type (`param_ty`)

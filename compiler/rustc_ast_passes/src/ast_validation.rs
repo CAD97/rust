@@ -1252,10 +1252,8 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
         if let GenericBound::Trait(poly, modify) = bound {
             match (ctxt, modify) {
                 (BoundKind::SuperTraits, TraitBoundModifier::Maybe) => {
-                    self.err_handler().emit_err(errors::OptionalTraitSupertrait {
-                        span: poly.span,
-                        path_str: pprust::path_to_string(&poly.trait_ref.path)
-                    });
+                    // This is an error *unless* the unbound is for MetaSized.
+                    // FIXME: actually emit the error in hir analysis
                 }
                 (BoundKind::TraitObject, TraitBoundModifier::Maybe) => {
                     self.err_handler().emit_err(errors::OptionalTraitObject {span: poly.span});

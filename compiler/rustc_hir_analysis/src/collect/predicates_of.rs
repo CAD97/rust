@@ -38,11 +38,27 @@ pub(super) fn predicates_of(tcx: TyCtxt<'_>, def_id: DefId) -> ty::GenericPredic
         // an obligation and instead be skipped. Otherwise we'd use
         // `tcx.def_span(def_id);`
         let span = rustc_span::DUMMY_SP;
-        result.predicates =
-            tcx.arena.alloc_from_iter(result.predicates.iter().copied().chain(std::iter::once((
-                ty::TraitRef::identity(tcx, def_id).to_predicate(tcx),
-                span,
-            ))));
+        let identity = ty::TraitRef::identity(tcx, def_id);
+        // HACK(cad97): elaborate MetaSized bound for all traits except Unsize and Pointee
+        let mut meta_sized = if let Some(meta_sized_trait) = tcx.lang_items().meta_sized_trait() {
+            Some(ty::TraitRef::new(tcx, meta_sized_trait, [identity.self_ty()]))
+        } else {
+            None
+        };
+        if let Some(unsize_trait) = tcx.lang_items().unsize_trait() && def_id == unsize_trait {
+            meta_sized = None;
+        }
+        if let Some(pointee_trait) = tcx.lang_items().pointee_trait() && def_id == pointee_trait {
+            meta_sized = None;
+        }
+        result.predicates = tcx.arena.alloc_from_iter(
+            result
+                .predicates
+                .iter()
+                .copied()
+                .chain([(identity.to_predicate(tcx), span)])
+                .chain(meta_sized.map(|meta_sized| (meta_sized.to_predicate(tcx), span))),
+        );
     }
     debug!("predicates_of(def_id={:?}) = {:?}", def_id, result);
     result
@@ -53,6 +69,7 @@ pub(super) fn predicates_of(tcx: TyCtxt<'_>, def_id: DefId) -> ty::GenericPredic
 #[instrument(level = "trace", skip(tcx), ret)]
 fn gather_explicit_predicates_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::GenericPredicates<'_> {
     use rustc_hir::*;
+    // use rustc_middle::ty::Ty;
 
     match tcx.opt_rpitit_info(def_id.to_def_id()) {
         Some(ImplTraitInTraitData::Trait { fn_def_id, .. }) => {
@@ -168,11 +185,17 @@ fn gather_explicit_predicates_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::Gen
     // on a trait we must also consider the bounds that follow the trait's name,
     // like `trait Foo: A + B + C`.
     if let Some(self_bounds) = is_trait {
-        predicates.extend(
-            icx.astconv()
-                .compute_bounds(tcx.types.self_param, self_bounds, PredicateFilter::All)
-                .clauses(),
+        let mut bounds =
+            icx.astconv().compute_bounds(tcx.types.self_param, self_bounds, PredicateFilter::All);
+        // Traits are implicitly meta-sized unless a `?MetaSized` bound is found
+        icx.astconv().add_implicitly_meta_sized(
+            &mut bounds,
+            tcx.types.self_param,
+            self_bounds,
+            Some((def_id, ast_generics.predicates)),
+            tcx.def_span(def_id),
         );
+        predicates.extend(bounds.clauses());
     }
 
     // In default impls, we can assume that the self type implements
@@ -283,6 +306,46 @@ fn gather_explicit_predicates_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::Gen
         }
     }
 
+    // Add in implicit MetaSized bounds for any associated types
+    for predicate in ast_generics.predicates {
+        let hir::WherePredicate::BoundPredicate(bound_pred) = predicate else { continue };
+        let _bounded_ty = icx.to_ty(bound_pred.bounded_ty);
+        for bound in bound_pred.bounds {
+            let hir::GenericBound::Trait(tr, _) = bound else { continue };
+            let Some(tr_did) = tr.trait_ref.trait_def_id() else { continue };
+            for assoc in tcx.associated_items(tr_did).in_definition_order() {
+                if assoc.kind != ty::AssocKind::Type {
+                    continue;
+                }
+                if tr.bound_generic_params.iter().any(|param| {
+                    param.def_id.to_def_id() == assoc.def_id
+                        && matches!(param.kind, GenericParamKind::Type { default: Some(_), .. })
+                }) {
+                    continue;
+                }
+                // // TODO(cad97): bound the alias, somehow
+                // let assoc_ty = Ty::new_alias(
+                //     tcx,
+                //     ty::Projection,
+                //     tcx.mk_alias_ty(
+                //         assoc.def_id,
+                //         hir::GenericArgs::identity_for_item(assoc.def_id),
+                //     ).with_self_ty(bounded_ty),
+                // );
+                // let mut bounds = Bounds::default();
+                // // Associated types are implicitly meta sized unless a `?MetaSized` bound is found
+                // icx.astconv().add_implicitly_meta_sized(
+                //     &mut bounds,
+                //     assoc_ty,
+                //     &[],
+                //     Some((assoc.def_id, ast_generics.predicates)),
+                //     bound_pred.span,
+                // );
+                // predicates.extend(bounds.clauses());
+            }
+        }
+    }
+
     if tcx.features().generic_const_exprs {
         predicates.extend(const_evaluatable_predicates_of(tcx, def_id));
     }
@@ -311,7 +374,8 @@ fn gather_explicit_predicates_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::Gen
     if let Node::Item(&Item { kind: ItemKind::OpaqueTy(..), .. }) = node {
         let opaque_ty_id = tcx.hir().parent_id(hir_id);
         let opaque_ty_node = tcx.hir().get(opaque_ty_id);
-        let Node::Ty(&Ty { kind: TyKind::OpaqueDef(_, lifetimes, _), .. }) = opaque_ty_node else {
+        let Node::Ty(&hir::Ty { kind: TyKind::OpaqueDef(_, lifetimes, _), .. }) = opaque_ty_node
+        else {
             bug!("unexpected {opaque_ty_node:?}")
         };
         debug!(?lifetimes);

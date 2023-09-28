@@ -2167,6 +2167,69 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
         }
     }
 
+    fn meta_sized_conditions(
+        &mut self,
+        obligation: &PolyTraitObligation<'tcx>,
+    ) -> BuiltinImplConditions<'tcx> {
+        use self::BuiltinImplConditions::{Ambiguous, None, Where};
+
+        // NOTE: binder moved to (*)
+        let self_ty = self.infcx.shallow_resolve(obligation.predicate.skip_binder().self_ty());
+
+        match self_ty.kind() {
+            ty::Infer(ty::IntVar(_) | ty::FloatVar(_))
+            | ty::Uint(_)
+            | ty::Int(_)
+            | ty::Bool
+            | ty::Float(_)
+            | ty::FnDef(..)
+            | ty::FnPtr(_)
+            | ty::RawPtr(..)
+            | ty::Char
+            | ty::Ref(..)
+            | ty::Generator(..)
+            | ty::GeneratorWitness(..)
+            | ty::GeneratorWitnessMIR(..)
+            | ty::Array(..)
+            | ty::Closure(..)
+            | ty::Never
+            | ty::Dynamic(_, _, ty::DynStar)
+            | ty::Error(_)
+            | ty::Str
+            | ty::Slice(_)
+            | ty::Dynamic(..) => {
+                // safe for everything
+                Where(ty::Binder::dummy(Vec::new()))
+            }
+
+            ty::Foreign(..) => None,
+
+            ty::Tuple(tys) => Where(
+                obligation.predicate.rebind(tys.last().map_or_else(Vec::new, |&last| vec![last])),
+            ),
+
+            ty::Adt(def, args) => {
+                let meta_sized_crit = def.meta_sized_constraint(self.tcx());
+                // (*) binder moved here
+                Where(
+                    obligation
+                        .predicate
+                        .rebind(meta_sized_crit.iter_instantiated(self.tcx(), args).collect()),
+                )
+            }
+
+            ty::Alias(..) | ty::Param(_) | ty::Placeholder(..) => None,
+            ty::Infer(ty::TyVar(_)) => Ambiguous,
+
+            // We can make this an ICE if/once we actually instantiate the trait obligation eagerly.
+            ty::Bound(..) => None,
+
+            ty::Infer(ty::FreshTy(_) | ty::FreshIntTy(_) | ty::FreshFloatTy(_)) => {
+                bug!("asked to assemble builtin bounds of unexpected type: {:?}", self_ty);
+            }
+        }
+    }
+
     fn copy_clone_conditions(
         &mut self,
         obligation: &PolyTraitObligation<'tcx>,

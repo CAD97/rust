@@ -2,6 +2,20 @@
 
 use crate::fmt;
 use crate::hash::{Hash, Hasher};
+use crate::marker::MetaSized;
+
+/// Provides the pointer metadata type of any pointed-to type.
+#[cfg(bootstrap)]
+#[lang = "pointee_trait"]
+#[rustc_deny_explicit_impl(implement_via_object = false)]
+pub trait Pointee {
+    /// The type for metadata in pointers and references to `Self`.
+    #[lang = "metadata_type"]
+    // NOTE: Keep trait bounds in `static_assert_expected_bounds_for_metadata`
+    // in `library/core/src/ptr/metadata.rs`
+    // in sync with those here:
+    type Metadata: Copy + Send + Sync + Ord + Hash + Unpin;
+}
 
 /// Provides the pointer metadata type of any pointed-to type.
 ///
@@ -49,9 +63,10 @@ use crate::hash::{Hash, Hasher};
 /// with [`from_raw_parts`] or [`from_raw_parts_mut`].
 ///
 /// [`to_raw_parts`]: *const::to_raw_parts
+#[cfg(not(bootstrap))]
 #[lang = "pointee_trait"]
 #[rustc_deny_explicit_impl(implement_via_object = false)]
-pub trait Pointee {
+pub trait Pointee: ?MetaSized {
     /// The type for metadata in pointers and references to `Self`.
     #[lang = "metadata_type"]
     // NOTE: Keep trait bounds in `static_assert_expected_bounds_for_metadata`
@@ -91,7 +106,7 @@ pub trait Thin = Pointee<Metadata = ()>;
 /// ```
 #[rustc_const_unstable(feature = "ptr_metadata", issue = "81513")]
 #[inline]
-pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as Pointee>::Metadata {
+pub const fn metadata<T: ?MetaSized>(ptr: *const T) -> <T as Pointee>::Metadata {
     // SAFETY: Accessing the value from the `PtrRepr` union is safe since *const T
     // and PtrComponents<T> have the same memory layouts. Only std can make this
     // guarantee.
@@ -108,7 +123,7 @@ pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as Pointee>::Metadata {
 #[unstable(feature = "ptr_metadata", issue = "81513")]
 #[rustc_const_unstable(feature = "ptr_metadata", issue = "81513")]
 #[inline]
-pub const fn from_raw_parts<T: ?Sized>(
+pub const fn from_raw_parts<T: ?MetaSized>(
     data_address: *const (),
     metadata: <T as Pointee>::Metadata,
 ) -> *const T {
@@ -125,7 +140,7 @@ pub const fn from_raw_parts<T: ?Sized>(
 #[unstable(feature = "ptr_metadata", issue = "81513")]
 #[rustc_const_unstable(feature = "ptr_metadata", issue = "81513")]
 #[inline]
-pub const fn from_raw_parts_mut<T: ?Sized>(
+pub const fn from_raw_parts_mut<T: ?MetaSized>(
     data_address: *mut (),
     metadata: <T as Pointee>::Metadata,
 ) -> *mut T {
@@ -136,23 +151,23 @@ pub const fn from_raw_parts_mut<T: ?Sized>(
 }
 
 #[repr(C)]
-union PtrRepr<T: ?Sized> {
+union PtrRepr<T: ?MetaSized> {
     const_ptr: *const T,
     mut_ptr: *mut T,
     components: PtrComponents<T>,
 }
 
 #[repr(C)]
-struct PtrComponents<T: ?Sized> {
+struct PtrComponents<T: ?MetaSized> {
     data_address: *const (),
     metadata: <T as Pointee>::Metadata,
 }
 
 // Manual impl needed to avoid `T: Copy` bound.
-impl<T: ?Sized> Copy for PtrComponents<T> {}
+impl<T: ?MetaSized> Copy for PtrComponents<T> {}
 
 // Manual impl needed to avoid `T: Clone` bound.
-impl<T: ?Sized> Clone for PtrComponents<T> {
+impl<T: ?MetaSized> Clone for PtrComponents<T> {
     fn clone(&self) -> Self {
         *self
     }
