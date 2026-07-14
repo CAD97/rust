@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["chown","chroot","fchown","lchown","mkfifo","symlink"],"trait":["DirBuilderExt","DirEntryExt","DirEntryExt2","FileExt","FileTypeExt","HomeDirsExt","MediaDirsExt","MetadataExt","OpenOptionsExt","PermissionsExt"]};
